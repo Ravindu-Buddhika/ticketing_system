@@ -1,8 +1,11 @@
 package org.example.service;
 
+import jakarta.transaction.Transactional;
+import org.example.entity.Booking;
 import org.example.entity.Seat;
 import org.example.entity.User;
 import org.example.exception.SeatLockedException;
+import org.example.repository.BookingRepository;
 import org.example.repository.SeatRepository;
 import org.example.repository.UserRepository;
 import org.example.service.pricing.PricingProvider;
@@ -25,6 +28,9 @@ public class SeatService {
 
     @Autowired
     PricingProvider pricingProvider;
+
+    @Autowired
+    BookingRepository bookingRepository;
 
     public Seat holdSeat(Long seatId,Long userId){
         Seat seat =seatRepository.findById(seatId)
@@ -52,5 +58,31 @@ public class SeatService {
         }
 
         return seatRepository.save(seat);
+    }
+
+    @Transactional
+    public Booking confirmBooking(Long seatId, Long userId) {
+        Seat seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!"HELD".equals(seat.getStatus()) || seat.getHoldExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Seat hold has expired or is not currently held.");
+        }
+
+        seat.setStatus("SOLD");
+        seat.setHoldExpiry(null);
+        seatRepository.save(seat);
+
+        PricingStrategy strategy= pricingProvider.getStrategy(user.getTier());
+        double price= strategy.calculatePrice(seat.getEvent().getBasePrice(), seat.getEvent().isHighDemand());
+
+        Booking booking = new Booking();
+        booking.setUser(user);
+        booking.setSeat(seat);
+        booking.setFinalAmount(price);
+
+        return bookingRepository.save(booking);
     }
 }

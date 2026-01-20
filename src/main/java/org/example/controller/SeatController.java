@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.entity.Booking;
 import org.example.entity.Seat;
 import org.example.service.SeatService;
 import org.example.exception.SeatLockedException;
@@ -36,5 +37,10 @@ public class SeatController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @PostMapping("/{seatId}/confirm")
+    public ResponseEntity<Booking> confirmBooking(@PathVariable Long seatId, @RequestParam Long userId) {
+        return ResponseEntity.ok(seatService.confirmBooking(seatId, userId));
     }
 }
