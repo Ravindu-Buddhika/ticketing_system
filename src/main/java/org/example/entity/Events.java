@@ -19,5 +19,4 @@ public class Events {
     private double basePrice;
     private boolean isHighDemand;
 
-
 }
